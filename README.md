@@ -1,77 +1,104 @@
 # Sayanox PulseMQ
 
-**A modern event streaming platform built from first principles.**
+**Modern event streaming. Built from first principles.**
 
-PulseMQ is **not** a Kafka clone.  
-It is a new system designed for the next decade of real-time data — with optional Kafka wire-protocol compatibility so existing tools can still talk to it.
+PulseMQ is an independent event streaming platform.  
+Kafka protocol support exists only as a **compatibility bridge** — not as the core identity.
 
----
-
-## Core Philosophy
-
-> Compatibility is a feature. Identity is not negotiable.
-
-- Kafka protocol support = **bridge**, not the foundation
-- Internal architecture, storage format, APIs, and operational model are designed independently
-- Written in **Rust** for memory safety and predictable performance
-- Built for cloud-native, multi-tenant, and edge environments from day one
+```text
+Compatibility is a feature.
+Identity is not negotiable.
+```
 
 ---
 
-## What Makes PulseMQ Different
+## Why PulseMQ Exists
 
-| Area                    | PulseMQ Approach                              | Traditional systems          |
-|-------------------------|-----------------------------------------------|------------------------------|
-| **Core Identity**       | Independent design                            | Often Kafka-derived          |
-| **Language**            | Rust (safety + performance)                   | Mostly Java/Scala            |
-| **Storage**             | Native tiered storage (hot + cold) planned    | Usually bolted on later      |
-| **Multi-tenancy**       | First-class design goal                       | Often afterthought           |
-| **Operations**          | Simpler defaults, less ZooKeeper-like complexity | Historically complex     |
-| **Edge / Lightweight**  | Planned lightweight mode                     | Heavy by default             |
-| **Observability**       | Built-in from the start                       | Usually external             |
-| **Protocol**            | Native protocol + optional Kafka compatibility| Kafka protocol is the core   |
+Most “Kafka alternatives” are still shaped by Kafka’s original decisions.  
+PulseMQ starts over with modern requirements:
+
+- Memory-safe high performance (Rust)
+- Native multi-tenancy
+- Tiered storage as a core idea
+- Clean separation between native protocol and compatibility layer
+- Simpler operations
 
 ---
 
-## Key Design Pillars
+## Architecture at a Glance
 
-1. **Performance with Safety**  
-   Rust + careful concurrency design for high throughput without sacrificing reliability.
+```text
+crates/
+├── native-protocol/   ← PulseMQ’s own wire protocol (primary)
+├── protocol/          ← Kafka compatibility layer only
+├── storage/           ← Native storage format (.pmls / .pmidx)
+└── broker/            ← Broker process
+```
 
-2. **Operational Simplicity**  
-   Fewer moving parts. Better defaults. Clearer failure modes.
+| Layer                | Identity                         |
+|----------------------|----------------------------------|
+| Native Protocol      | PulseMQ original (`PULS` magic)  |
+| Storage Format       | PulseMQ original (`PMLS` magic)  |
+| Kafka Protocol       | Optional compatibility only      |
 
-3. **Tiered Storage Native**  
-   Hot local storage + cold object storage as a core concept, not a later plugin.
+---
 
-4. **Compatibility as a Layer**  
-   Kafka clients can connect (via compatibility layer), but the system does not pretend to *be* Kafka internally.
+## Distinct Storage Format
 
-5. **Modern Multi-tenancy**  
-   Resource isolation and tenant awareness designed in, not patched later.
+PulseMQ does **not** use Kafka’s log format.
+
+- Segment files end with `.pmls` (PulseMQ Log Segment)
+- Index files end with `.pmidx`
+- Every segment starts with magic `PMLS`
+- Record layout includes first-class headers and flags
+- Directory layout: `data/streams/<name>-<partition>/`
+
+This makes the on-disk format instantly recognizable as PulseMQ.
+
+---
+
+## Native Protocol (New)
+
+`crates/native-protocol` is the primary protocol.
+
+Highlights:
+- Magic bytes: `PULS`
+- First-class `tenant_id` in every request
+- 64-bit correlation IDs
+- Clean versioning
+- Designed for multi-tenant and cloud-native use
+
+Kafka clients can still connect through the compatibility layer.  
+Native clients will use the PulseMQ protocol.
 
 ---
 
 ## Current Status
 
-**Active development** — Core components in progress:
-
-- Broker with TCP listener
-- Request parsing (compatibility layer)
-- Segment-based storage engine with real append
-- Metadata & Produce handling (early stage)
-- Clear separation between native design and compatibility layer
+| Component              | Status                  |
+|------------------------|-------------------------|
+| Native Protocol        | Started                 |
+| Native Storage Engine  | Working (append)        |
+| Kafka Compatibility    | Partial (Metadata, Produce, ApiVersions) |
+| Broker                 | Running                 |
 
 ---
 
-## Project Structure
+## Quick Start
 
-```text
-crates/
-├── broker/     # Main broker process
-├── protocol/   # Wire protocol + compatibility layer
-└── storage/    # Native log storage engine (independent design)
+```bash
+git clone https://github.com/sayan9168/Sayanox-PulseMQ.git
+cd Sayanox-PulseMQ
+cargo run -p pulsemq-broker
 ```
+
+---
+
+## Documentation
+
+- [Philosophy](docs/PHILOSOPHY.md) — Why we are not a Kafka clone
+- [Differentiation](docs/DIFFERENTIATION.md) — Clear comparison
+- [Storage Design](docs/STORAGE_DESIGN.md) — Storage architecture
 
 ---
 
@@ -81,11 +108,7 @@ Apache License 2.0
 
 ---
 
-## About
+**Sayanox PulseMQ**  
+Built by [Sayan Mahata](https://github.com/sayan9168) / Sayanox Private Limited
 
-Built by **Sayanox Private Limited**  
-Creator: [Sayan Mahata](https://github.com/sayan9168) — System Architect & Security Researcher
-
----
-
-**Sayanox PulseMQ** — Event streaming, re-imagined.
+Event streaming, re-imagined.
