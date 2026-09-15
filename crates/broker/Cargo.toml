@@ -13,3 +13,4 @@ thiserror = { workspace = true }
 bytes = { workspace = true }
 
 pulsemq-protocol = { path = "../protocol" }
+pulsemq-storage = { path = "../storage" }
