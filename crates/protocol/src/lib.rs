@@ -1,7 +1,14 @@
-//! PulseMQ Protocol Layer
+//! PulseMQ Protocol Layer — Compatibility Bridge
 //!
-//! Handles Kafka wire protocol compatibility, request/response parsing,
-//! and protocol versioning.
+//! This crate provides **optional** Kafka wire-protocol compatibility.
+//!
+//! Important:
+//! - This is a compatibility layer, not the core identity of PulseMQ.
+//! - The internal storage format, APIs, and architecture are designed independently.
+//! - Future native PulseMQ protocol can live alongside or replace this layer.
+//!
+//! Supporting Kafka clients is a migration feature.
+//! Being a Kafka clone is not the goal.
 
 use bytes::{Buf, BytesMut};
 use thiserror::Error;
@@ -11,7 +18,7 @@ pub fn protocol_version() -> &'static str {
     "0.1.0-dev"
 }
 
-/// Kafka API Keys (commonly used ones)
+/// Kafka API Keys (used only for compatibility)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i16)]
 pub enum ApiKey {
@@ -54,7 +61,7 @@ impl From<i16> for ApiKey {
     }
 }
 
-/// Kafka-compatible Request Header
+/// Request Header (Kafka-compatible structure for the compatibility layer)
 #[derive(Debug, Clone)]
 pub struct RequestHeader {
     pub api_key: ApiKey,
@@ -63,13 +70,13 @@ pub struct RequestHeader {
     pub client_id: String,
 }
 
-/// Kafka-compatible Response Header
+/// Response Header
 #[derive(Debug, Clone)]
 pub struct ResponseHeader {
     pub correlation_id: i32,
 }
 
-/// Error codes (Kafka compatible subset)
+/// Error codes (subset used for compatibility responses)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i16)]
 pub enum ErrorCode {
@@ -100,23 +107,20 @@ pub enum ProtocolError {
     Io(#[from] std::io::Error),
 }
 
-/// Parse the 4-byte length prefix of a Kafka request
+/// Parse the 4-byte length prefix
 pub fn parse_request_size(buf: &mut BytesMut) -> Result<Option<i32>, ProtocolError> {
     if buf.len() < 4 {
-        return Ok(None); // Need more data
+        return Ok(None);
     }
     let size = buf.get_i32();
     if size < 0 || size > 100 * 1024 * 1024 {
-        // Sanity check: max 100MB request
         return Err(ProtocolError::InvalidSize(size));
     }
     Ok(Some(size))
 }
 
-/// Parse Kafka Request Header from buffer
-/// Returns None if not enough data yet
+/// Parse Request Header from the compatibility layer
 pub fn parse_request_header(buf: &mut BytesMut) -> Result<Option<RequestHeader>, ProtocolError> {
-    // Minimum header size without client_id: 2 + 2 + 4 + 2 = 10 bytes
     if buf.len() < 10 {
         return Ok(None);
     }
@@ -125,7 +129,6 @@ pub fn parse_request_header(buf: &mut BytesMut) -> Result<Option<RequestHeader>,
     let api_version = buf.get_i16();
     let correlation_id = buf.get_i32();
 
-    // client_id is a Kafka STRING: int16 length + bytes
     if buf.len() < 2 {
         return Ok(None);
     }
@@ -137,7 +140,7 @@ pub fn parse_request_header(buf: &mut BytesMut) -> Result<Option<RequestHeader>,
 
     let client_id_len = client_id_len as usize;
     if buf.len() < client_id_len {
-        return Ok(None); // Need more data
+        return Ok(None);
     }
 
     let client_id_bytes = buf.copy_to_bytes(client_id_len);
