@@ -1,74 +1,83 @@
 # Sayanox PulseMQ
 
-**Next-generation high-performance event streaming platform**  
-An advanced alternative to Apache Kafka with seamless migration path.
+**A modern event streaming platform built from first principles.**
+
+PulseMQ is **not** a Kafka clone.  
+It is a new system designed for the next decade of real-time data — with optional Kafka wire-protocol compatibility so existing tools can still talk to it.
 
 ---
 
-## Vision
+## Core Philosophy
 
-Sayanox PulseMQ aims to be a modern, high-performance, and developer-friendly event streaming system that keeps full compatibility with the Kafka ecosystem while delivering superior performance, simpler operations, and advanced features out of the box.
+> Compatibility is a feature. Identity is not negotiable.
 
-**Goal**: Make it so easy and beneficial that Kafka users can switch with minimal effort and immediately gain advantages.
-
----
-
-## Key Goals
-
-- **Higher Performance**: Lower latency and higher throughput than Kafka
-- **Kafka Protocol Compatibility**: Existing Kafka producers, consumers, and tools should work with minimal or no changes
-- **Easier Operations**: Simpler deployment, better defaults, built-in observability
-- **Modern Architecture**: Designed for cloud-native, multi-tenant, and edge environments
-- **Strong Reliability**: Improved exactly-once semantics, better replication, and faster recovery
-- **Developer Experience**: Clean APIs, better tooling, and clear documentation
+- Kafka protocol support = **bridge**, not the foundation
+- Internal architecture, storage format, APIs, and operational model are designed independently
+- Written in **Rust** for memory safety and predictable performance
+- Built for cloud-native, multi-tenant, and edge environments from day one
 
 ---
 
-## Planned Advanced Features
+## What Makes PulseMQ Different
 
-- Kafka wire-protocol compatibility layer
-- Tiered storage (hot + cold)
-- Native multi-tenancy and resource isolation
-- Built-in Schema Registry
-- First-class observability (metrics, tracing, logging)
-- Smarter auto-balancing and auto-scaling
-- Stronger exactly-once guarantees
-- Plugin system for extensibility
-- Edge-friendly lightweight mode
-
----
-
-## Recommended Technology Stack
-
-| Component              | Recommended Choice | Why |
-|------------------------|--------------------|-----|
-| **Core Language**      | **Rust**           | Maximum performance + memory safety + modern concurrency |
-| Alternative            | Go                 | Faster development, excellent concurrency |
-| Consensus              | Raft               | Reliable and well-understood |
-| Storage                | Custom + Object Storage | Tiered storage support |
-| Networking             | Tokio / custom     | High-performance async |
-
-**Primary Recommendation: Rust**  
-Best long-term choice for a system that wants to beat Kafka in performance and safety.
+| Area                    | PulseMQ Approach                              | Traditional systems          |
+|-------------------------|-----------------------------------------------|------------------------------|
+| **Core Identity**       | Independent design                            | Often Kafka-derived          |
+| **Language**            | Rust (safety + performance)                   | Mostly Java/Scala            |
+| **Storage**             | Native tiered storage (hot + cold) planned    | Usually bolted on later      |
+| **Multi-tenancy**       | First-class design goal                       | Often afterthought           |
+| **Operations**          | Simpler defaults, less ZooKeeper-like complexity | Historically complex     |
+| **Edge / Lightweight**  | Planned lightweight mode                     | Heavy by default             |
+| **Observability**       | Built-in from the start                       | Usually external             |
+| **Protocol**            | Native protocol + optional Kafka compatibility| Kafka protocol is the core   |
 
 ---
 
-## Project Status
+## Key Design Pillars
 
-Currently in **Vision & Design** phase.
+1. **Performance with Safety**  
+   Rust + careful concurrency design for high throughput without sacrificing reliability.
+
+2. **Operational Simplicity**  
+   Fewer moving parts. Better defaults. Clearer failure modes.
+
+3. **Tiered Storage Native**  
+   Hot local storage + cold object storage as a core concept, not a later plugin.
+
+4. **Compatibility as a Layer**  
+   Kafka clients can connect (via compatibility layer), but the system does not pretend to *be* Kafka internally.
+
+5. **Modern Multi-tenancy**  
+   Resource isolation and tenant awareness designed in, not patched later.
 
 ---
 
-## Roadmap (High Level)
+## Current Status
 
-1. Core design & architecture document
-2. Kafka protocol compatibility research
-3. Minimal viable broker (produce + consume)
-4. Persistence layer
-5. Replication & consensus
-6. Compatibility layer
-7. Performance benchmarking vs Kafka
-8. Migration tools
+**Active development** — Core components in progress:
+
+- Broker with TCP listener
+- Request parsing (compatibility layer)
+- Segment-based storage engine with real append
+- Metadata & Produce handling (early stage)
+- Clear separation between native design and compatibility layer
+
+---
+
+## Project Structure
+
+```text
+crates/
+├── broker/     # Main broker process
+├── protocol/   # Wire protocol + compatibility layer
+└── storage/    # Native log storage engine (independent design)
+```
+
+---
+
+## License
+
+Apache License 2.0
 
 ---
 
@@ -79,10 +88,4 @@ Creator: [Sayan Mahata](https://github.com/sayan9168) — System Architect & Sec
 
 ---
 
-## License
-
-To be decided (likely Apache 2.0 or MIT)
-
----
-
-**Sayanox PulseMQ** — The next pulse of event streaming.
+**Sayanox PulseMQ** — Event streaming, re-imagined.
