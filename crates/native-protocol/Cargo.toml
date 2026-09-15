@@ -1,0 +1,12 @@
+[package]
+name = "pulsemq-native-protocol"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "PulseMQ Native Protocol — the primary wire protocol of PulseMQ"
+
+[dependencies]
+bytes = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
