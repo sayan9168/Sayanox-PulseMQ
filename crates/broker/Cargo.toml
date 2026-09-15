@@ -1,0 +1,17 @@
+[package]
+name = "pulsemq-broker"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+thiserror = { workspace = true }
+bytes = { workspace = true }
+
+# Internal crates (will be added later)
+# pulsemq-protocol = { path = "../protocol" }
+# pulsemq-storage = { path = "../storage" }
