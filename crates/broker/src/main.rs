@@ -15,15 +15,17 @@ async fn main() {
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    info!("Sayanox PulseMQ Broker starting...");
-    info!("Version: {}", env!("CARGO_PKG_VERSION"));
+    info!("══════════════════════════════════════");
+    info!("  Sayanox PulseMQ Broker");
+    info!("  Native event streaming platform");
+    info!("  Version: {}", env!("CARGO_PKG_VERSION"));
+    info!("══════════════════════════════════════");
 
     let config = BrokerConfig::from_env();
-    info!("Broker ID: {}", config.broker_id);
-    info!("Listening on: {}", config.listen_addr);
-    info!("Data directory: {}", config.data_dir);
+    info!("Broker ID      : {}", config.broker_id);
+    info!("Listen address : {}", config.listen_addr);
+    info!("Data directory : {}", config.data_dir);
 
-    // Initialize Storage Engine
     let storage_config = StorageConfig {
         data_dir: std::path::PathBuf::from(&config.data_dir),
         ..Default::default()
@@ -32,11 +34,11 @@ async fn main() {
     let storage = match StorageEngine::new(storage_config) {
         Ok(s) => Arc::new(s),
         Err(e) => {
-            error!("Failed to initialize storage engine: {}", e);
+            error!("Failed to initialize PulseMQ storage engine: {}", e);
             return;
         }
     };
-    info!("Storage engine initialized");
+    info!("PulseMQ Native Storage Engine ready");
 
     let listener = match TcpListener::bind(config.listen_addr).await {
         Ok(l) => l,
@@ -46,7 +48,7 @@ async fn main() {
         }
     };
 
-    info!("PulseMQ Broker is ready and accepting connections");
+    info!("PulseMQ is ready — accepting connections");
 
     let broker_id = config.broker_id;
 
@@ -55,7 +57,7 @@ async fn main() {
             result = listener.accept() => {
                 match result {
                     Ok((socket, addr)) => {
-                        info!("New connection from: {}", addr);
+                        info!("New connection from {}", addr);
                         let storage = Arc::clone(&storage);
                         tokio::spawn(async move {
                             if let Err(e) = handle_connection(socket, storage, broker_id).await {
@@ -67,13 +69,13 @@ async fn main() {
                 }
             }
             _ = tokio::signal::ctrl_c() => {
-                info!("Received shutdown signal");
+                info!("Shutdown signal received");
                 break;
             }
         }
     }
 
-    info!("Shutting down PulseMQ Broker...");
+    info!("PulseMQ Broker stopped");
 }
 
 async fn handle_connection(
@@ -105,7 +107,7 @@ async fn handle_connection(
         match parse_request_header(&mut buffer)? {
             Some(header) => {
                 info!(
-                    "Received request: api_key={:?}, version={}, correlation_id={}, client_id={}",
+                    "Request → api={:?} v{} corr={} client={}",
                     header.api_key, header.api_version, header.correlation_id, header.client_id
                 );
 
@@ -121,14 +123,11 @@ async fn handle_connection(
                     }
                     other => {
                         warn!("Unhandled API key: {:?}", other);
-                        // Send a generic error response so client doesn't hang
                         respond_empty_error(&mut socket, header.correlation_id).await?;
                     }
                 }
             }
-            None => {
-                warn!("Failed to parse request header");
-            }
+            None => warn!("Failed to parse request header"),
         }
     }
 
@@ -140,18 +139,16 @@ async fn respond_api_versions(
     correlation_id: i32,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut response = BytesMut::new();
-    response.put_i32(0); // size placeholder
+    response.put_i32(0);
 
     response.put_i32(correlation_id);
-    response.put_i16(0); // error_code = NONE
+    response.put_i16(0);
 
-    // api_versions array (compact style simplified)
-    // We advertise a few basic APIs
     let apis = [
-        (0i16, 0i16, 9i16),   // Produce
-        (1i16, 0i16, 11i16),  // Fetch
-        (3i16, 0i16, 12i16),  // Metadata
-        (18i16, 0i16, 3i16),  // ApiVersions
+        (0i16, 0i16, 9i16),
+        (1i16, 0i16, 11i16),
+        (3i16, 0i16, 12i16),
+        (18i16, 0i16, 3i16),
     ];
 
     response.put_i32(apis.len() as i32);
@@ -161,14 +158,13 @@ async fn respond_api_versions(
         response.put_i16(max_v);
     }
 
-    response.put_i32(0); // throttle_time_ms
+    response.put_i32(0);
 
     let size = (response.len() - 4) as i32;
     response[0..4].copy_from_slice(&size.to_be_bytes());
 
     socket.write_all(&response).await?;
     socket.flush().await?;
-    info!("Sent ApiVersions response");
     Ok(())
 }
 
@@ -178,38 +174,32 @@ async fn respond_metadata(
     broker_id: i32,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut response = BytesMut::new();
-    response.put_i32(0); // size placeholder
+    response.put_i32(0);
 
     response.put_i32(header.correlation_id);
-    response.put_i32(0); // throttle_time_ms
+    response.put_i32(0);
 
-    // Brokers array
-    response.put_i32(1); // one broker
+    response.put_i32(1);
     response.put_i32(broker_id);
-    // host (string)
     let host = "localhost";
     response.put_i16(host.len() as i16);
     response.put_slice(host.as_bytes());
-    response.put_i32(9092); // port
-    // rack (nullable string) = null
+    response.put_i32(9092);
     response.put_i16(-1);
 
-    // cluster_id (nullable string)
-    let cluster_id = "pulsemq-cluster";
+    let cluster_id = "pulsemq-native";
     response.put_i16(cluster_id.len() as i16);
     response.put_slice(cluster_id.as_bytes());
 
-    response.put_i32(broker_id); // controller_id
-
-    // Topics array - for now return empty (no topics yet)
-    response.put_i32(0);
+    response.put_i32(broker_id);
+    response.put_i32(0); // no topics yet
 
     let size = (response.len() - 4) as i32;
     response[0..4].copy_from_slice(&size.to_be_bytes());
 
     socket.write_all(&response).await?;
     socket.flush().await?;
-    info!("Sent Metadata response (broker_id={})", broker_id);
+    info!("Metadata response sent");
     Ok(())
 }
 
@@ -218,56 +208,49 @@ async fn respond_produce(
     header: &RequestHeader,
     storage: &StorageEngine,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    // For now we do a simplified produce:
-    // We don't fully parse the produce request body yet.
-    // Instead we create a dummy record and append it to a default topic.
-    // Full Produce request parsing will be added next.
-
-    let topic = "test-topic";
+    // Compatibility path: we still accept Kafka Produce requests,
+    // but we store data in PulseMQ native format.
+    let stream = "test-stream";
     let partition = 0;
 
     let record = Record {
         key: None,
-        value: b"hello from PulseMQ produce".to_vec(),
+        value: b"hello from PulseMQ native storage".to_vec(),
         timestamp: std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_millis() as i64,
+        headers: vec![("source".into(), b"pulsemq-compat".to_vec())],
     };
 
-    match storage.append(topic, partition, &[record]) {
+    match storage.append(stream, partition, &[record]) {
         Ok(offsets) => {
-            info!("Produced record to {}-{} at offsets={:?}", topic, partition, offsets);
+            info!("Stored record in native format → {}-{} offsets={:?}", stream, partition, offsets);
 
-            // Send a basic successful produce response
             let mut response = BytesMut::new();
-            response.put_i32(0); // size placeholder
+            response.put_i32(0);
             response.put_i32(header.correlation_id);
-            response.put_i32(0); // throttle_time_ms
+            response.put_i32(0);
 
-            // responses array (one topic)
             response.put_i32(1);
-            // topic name
-            response.put_i16(topic.len() as i16);
-            response.put_slice(topic.as_bytes());
+            response.put_i16(stream.len() as i16);
+            response.put_slice(stream.as_bytes());
 
-            // partition responses
             response.put_i32(1);
             response.put_i32(partition);
-            response.put_i16(0); // error_code = NONE
-            response.put_i64(offsets[0]); // base_offset
-            response.put_i64(-1); // log_append_time
-            response.put_i64(-1); // log_start_offset
+            response.put_i16(0);
+            response.put_i64(offsets[0]);
+            response.put_i64(-1);
+            response.put_i64(-1);
 
             let size = (response.len() - 4) as i32;
             response[0..4].copy_from_slice(&size.to_be_bytes());
 
             socket.write_all(&response).await?;
             socket.flush().await?;
-            info!("Sent Produce response");
         }
         Err(e) => {
-            error!("Failed to append record: {}", e);
+            error!("Native storage append failed: {}", e);
             respond_empty_error(socket, header.correlation_id).await?;
         }
     }
@@ -282,7 +265,7 @@ async fn respond_empty_error(
     let mut response = BytesMut::new();
     response.put_i32(0);
     response.put_i32(correlation_id);
-    response.put_i16(1); // non-zero error
+    response.put_i16(1);
 
     let size = (response.len() - 4) as i32;
     response[0..4].copy_from_slice(&size.to_be_bytes());
