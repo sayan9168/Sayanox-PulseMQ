@@ -12,6 +12,4 @@ tracing-subscriber = { workspace = true }
 thiserror = { workspace = true }
 bytes = { workspace = true }
 
-# Internal crates (will be added later)
-# pulsemq-protocol = { path = "../protocol" }
-# pulsemq-storage = { path = "../storage" }
+pulsemq-protocol = { path = "../protocol" }
